@@ -3,6 +3,7 @@ package com.spring.ecommerce.order;
 import com.spring.ecommerce.cart.Cart;
 import com.spring.ecommerce.cart.CartItem;
 import com.spring.ecommerce.cart.CartRepository;
+import com.spring.ecommerce.exception.BusinessException;
 import com.spring.ecommerce.inventory.Inventory;
 import com.spring.ecommerce.product.Product;
 import com.spring.ecommerce.payment.Payment;
@@ -33,11 +34,11 @@ public class OrderServiceImpl implements OrderService
     {
         // 1. Fetch Cart
         Cart cart = cartRepository.findByUser(user)
-                        .orElseThrow(() -> new IllegalStateException("Cart is empty"));
+                        .orElseThrow(() -> new BusinessException("Cart is empty"));
 
         if (cart.getItems().isEmpty()) 
         {
-            throw new IllegalStateException("Cart has no items");
+            throw new BusinessException("Cart has no items");
         }
 
         // 2. Create Order
@@ -57,7 +58,7 @@ public class OrderServiceImpl implements OrderService
 
             if(inventory.getAvailableStock() < cartItem.getQuantity())
             {
-                throw new IllegalStateException(
+                throw new BusinessException(
                         "Insufficient stock for product: " + product.getName());
             }
 

@@ -1,6 +1,7 @@
 package com.spring.ecommerce.cart;
 
 import com.spring.ecommerce.cart.dto.AddToCartRequest;
+import com.spring.ecommerce.exception.ResourceNotFoundException;
 import com.spring.ecommerce.product.Product;
 import com.spring.ecommerce.product.ProductRepository;
 import com.spring.ecommerce.user.User;
@@ -27,7 +28,7 @@ public class CartController
         user.setId(1L);
 
         Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         return cartService.addItem(user, product, request.getQuantity());
     }
@@ -40,7 +41,7 @@ public class CartController
         user.setId(1L);
 
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         return cartService.removeItem(user, product);
     }
