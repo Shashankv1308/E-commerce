@@ -1,8 +1,9 @@
 package com.spring.ecommerce.order;
 
 import com.spring.ecommerce.user.User;
+import com.spring.ecommerce.order.dto.OrderResponse;
 
 public interface OrderService 
 {
-    Order placeOrder(User user, PaymentMethod paymentMethod);
+    OrderResponse placeOrder(User user, PaymentMethod paymentMethod);
 }

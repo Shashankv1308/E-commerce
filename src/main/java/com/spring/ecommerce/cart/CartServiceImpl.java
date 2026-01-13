@@ -1,8 +1,14 @@
 package com.spring.ecommerce.cart;
 
 import com.spring.ecommerce.user.User;
+import com.spring.ecommerce.cart.dto.CartItemResponse;
+import com.spring.ecommerce.cart.dto.CartResponse;
 import com.spring.ecommerce.product.Product;
 import jakarta.transaction.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,21 +23,9 @@ public class CartServiceImpl implements CartService
     }
 
     @Override
-    public Cart getOrCreateCart(User user) 
+    public CartResponse addItem(User user, Product product, int quantity)
     {
-        return cartRepository.findByUser(user)
-                .orElseGet(() ->
-                {
-                    Cart cart = new Cart();
-                    cart.setUser(user);
-                    return cartRepository.save(cart);
-                });
-    }
-
-    @Override
-    public Cart addItem(User user, Product product, int quantity)
-    {
-        Cart cart = getOrCreateCart(user);
+        Cart cart = getOrCreateCartEntity(user);
 
         cart.getItems().stream()
                 .filter(item -> item.getProduct().getId().equals(product.getId()))
@@ -46,18 +40,67 @@ public class CartServiceImpl implements CartService
                         cart.getItems().add(item);
                     }
                 );
-        return cartRepository.save(cart);
+        return mapToResponse(cartRepository.save(cart));
     }
 
     @Override
-    public Cart removeItem(User user, Product product)
+    public CartResponse removeItem(User user, Product product)
     {
-        Cart cart = getOrCreateCart(user);
+        Cart cart = getOrCreateCartEntity(user);
 
         cart.getItems().removeIf(
             item -> item.getProduct().getId().equals(product.getId())
         );
 
-        return cartRepository.save(cart);
+        return mapToResponse(cartRepository.save(cart));
+    }
+
+    @Override
+    public CartResponse getCart(User user) 
+    {
+        return mapToResponse(getOrCreateCartEntity(user));
+    }
+
+    // Helper methods
+    
+    private Cart getOrCreateCartEntity(User user) 
+    {
+        return cartRepository.findByUser(user)
+                .orElseGet(() ->
+                {
+                    Cart cart = new Cart();
+                    cart.setUser(user);
+                    return cartRepository.save(cart);
+                });
+    }
+
+    private CartResponse mapToResponse(Cart cart)
+    {
+        CartResponse response = new CartResponse();
+        response.setCartId(cart.getId());
+        
+        double total = 0;
+
+        List<CartItemResponse> itemResponses = new ArrayList<>();
+
+        for (CartItem item : cart.getItems())
+        {
+            CartItemResponse itemResponse = new CartItemResponse();
+            itemResponse.setProductId(item.getProduct().getId());
+            itemResponse.setProductName(item.getProduct().getName());
+            itemResponse.setQuantity(item.getQuantity());
+            itemResponse.setPrice(item.getProduct().getPrice());
+
+            double subtotal = item.getQuantity() * item.getProduct().getPrice();
+            itemResponse.setSubtotal(subtotal);
+
+            total += subtotal;
+            itemResponses.add(itemResponse);
+        }
+        
+        response.setItems(itemResponses);
+        response.setTotalAmount(total);
+        
+        return response;
     }
 }

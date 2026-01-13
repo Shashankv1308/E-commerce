@@ -40,7 +40,7 @@ public class Order
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private OrderStatus orderstatus;
+    private OrderStatus orderStatus;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

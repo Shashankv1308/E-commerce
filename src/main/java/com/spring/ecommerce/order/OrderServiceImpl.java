@@ -5,11 +5,18 @@ import com.spring.ecommerce.cart.CartItem;
 import com.spring.ecommerce.cart.CartRepository;
 import com.spring.ecommerce.exception.BusinessException;
 import com.spring.ecommerce.inventory.Inventory;
+import com.spring.ecommerce.order.dto.OrderItemResponse;
+import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.product.Product;
 import com.spring.ecommerce.payment.Payment;
 import com.spring.ecommerce.payment.PaymentRepository;
 import com.spring.ecommerce.user.User;
+
 import jakarta.transaction.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -30,7 +37,7 @@ public class OrderServiceImpl implements OrderService
     }
 
     @Override
-    public Order placeOrder(User user, PaymentMethod paymentMethod)
+    public OrderResponse placeOrder(User user, PaymentMethod paymentMethod)
     {
         // 1. Fetch Cart
         Cart cart = cartRepository.findByUser(user)
@@ -44,7 +51,7 @@ public class OrderServiceImpl implements OrderService
         // 2. Create Order
         Order order = new Order();
         order.setUser(user);
-        order.setOrderstatus(OrderStatus.CONFIRMED);
+        order.setOrderStatus(OrderStatus.CONFIRMED);
         order.setPaymentStatus(PaymentStatus.PENDING);
         order.setPaymentMethod(paymentMethod);
 
@@ -97,6 +104,38 @@ public class OrderServiceImpl implements OrderService
         cart.getItems().clear();
         cartRepository.save(cart);
 
-        return savedOrder;
+        return mapToResponse(savedOrder);
+    }
+
+    //Helper method
+    private OrderResponse mapToResponse(Order order) 
+    {
+        OrderResponse response = new OrderResponse();
+        response.setOrderId(order.getId());
+        response.setOrderStatus(order.getOrderStatus());
+        response.setPaymentStatus(order.getPaymentStatus());
+        response.setPaymentMethod(order.getPaymentMethod());
+        response.setTotalAmount(order.getTotalAmount());
+        response.setCreatedAt(order.getCreatedAt());
+
+        List<OrderItemResponse> itemResponses = new ArrayList<>();
+
+        for (OrderItem item : order.getItems()) 
+        {
+            OrderItemResponse itemResponse = new OrderItemResponse();
+            itemResponse.setProductId(item.getProduct().getId());
+            itemResponse.setProductName(item.getProduct().getName());
+            itemResponse.setQuantity(item.getQuantity());
+            itemResponse.setPriceAtPurchase(item.getPriceAtPurchase());
+
+            double subtotal = item.getQuantity() * item.getPriceAtPurchase();
+            itemResponse.setSubtotal(subtotal);
+
+            itemResponses.add(itemResponse);
+        }
+
+        response.setItems(itemResponses);
+
+        return response;
     }
 }
