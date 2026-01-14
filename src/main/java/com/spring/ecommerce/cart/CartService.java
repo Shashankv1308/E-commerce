@@ -1,13 +1,14 @@
 package com.spring.ecommerce.cart;
 
 import com.spring.ecommerce.user.User;
+import com.spring.ecommerce.cart.dto.CartResponse;
 import com.spring.ecommerce.product.Product;;
 
 public interface CartService 
 {
-    Cart getOrCreateCart(User user);
+    CartResponse addItem(User user, Product product, int quantity);
 
-    Cart addItem(User user, Product product, int quantity);
+    CartResponse removeItem(User user, Product product);
 
-    Cart removeItem(User user, Product product);
+    CartResponse getCart(User user);
 }

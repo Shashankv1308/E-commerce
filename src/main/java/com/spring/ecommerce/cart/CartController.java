@@ -1,6 +1,7 @@
 package com.spring.ecommerce.cart;
 
 import com.spring.ecommerce.cart.dto.AddToCartRequest;
+import com.spring.ecommerce.cart.dto.CartResponse;
 import com.spring.ecommerce.exception.ResourceNotFoundException;
 import com.spring.ecommerce.product.Product;
 import com.spring.ecommerce.product.ProductRepository;
@@ -22,7 +23,7 @@ public class CartController
     }
 
     @PostMapping("/items")
-    public Cart addItem(@RequestBody @Valid AddToCartRequest request)
+    public CartResponse addItem(@RequestBody @Valid AddToCartRequest request)
     {
         User user = new User();
         user.setId(1L);
@@ -35,7 +36,7 @@ public class CartController
 
 
     @DeleteMapping("/items/{productId}")
-    public Cart removeItem(@PathVariable Long productId) 
+    public CartResponse removeItem(@PathVariable Long productId) 
     {
         User user = new User();
         user.setId(1L);
