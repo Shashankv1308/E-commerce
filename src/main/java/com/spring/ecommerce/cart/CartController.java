@@ -1,13 +1,22 @@
 package com.spring.ecommerce.cart;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.spring.ecommerce.cart.dto.AddToCartRequest;
 import com.spring.ecommerce.cart.dto.CartResponse;
 import com.spring.ecommerce.exception.ResourceNotFoundException;
 import com.spring.ecommerce.product.Product;
 import com.spring.ecommerce.product.ProductRepository;
+import com.spring.ecommerce.security.CustomUserDetails;
 import com.spring.ecommerce.user.User;
+
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/cart")
@@ -23,11 +32,9 @@ public class CartController
     }
 
     @PostMapping("/items")
-    public CartResponse addItem(@RequestBody @Valid AddToCartRequest request)
+    public CartResponse addItem(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody @Valid AddToCartRequest request)
     {
-        User user = new User();
-        user.setId(1L);
-
+        User user = userDetails.getUser();
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
@@ -36,11 +43,9 @@ public class CartController
 
 
     @DeleteMapping("/items/{productId}")
-    public CartResponse removeItem(@PathVariable Long productId) 
+    public CartResponse removeItem(@AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable Long productId) 
     {
-        User user = new User();
-        user.setId(1L);
-
+        User user = userDetails.getUser();
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
