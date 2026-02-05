@@ -4,6 +4,7 @@ import com.spring.ecommerce.cart.Cart;
 import com.spring.ecommerce.cart.CartItem;
 import com.spring.ecommerce.cart.CartRepository;
 import com.spring.ecommerce.exception.BusinessException;
+import com.spring.ecommerce.exception.ResourceNotFoundException;
 import com.spring.ecommerce.inventory.Inventory;
 import com.spring.ecommerce.order.dto.OrderItemResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
@@ -106,6 +107,25 @@ public class OrderServiceImpl implements OrderService
 
         return mapToResponse(savedOrder);
     }
+
+    @Override
+    public OrderResponse getOrderById(Long orderId, User user)
+    {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Order not found")
+                );
+
+        // OWNERSHIP CHECK
+        if (!order.getUser().getId().equals(user.getId())) 
+        {
+            throw new BusinessException("You are not allowed to access this order");
+        }
+
+        return mapToResponse(order);
+    }
+
 
     //Helper method
     private OrderResponse mapToResponse(Order order) 
