@@ -129,10 +129,29 @@ public class OrderServiceImpl implements OrderService
     }
 
     @Override
-    public Page<OrderResponse> getOrderHistory(User user, Pageable pageable) 
-    {
+    public Page<OrderResponse> getOrderHistory(
+            User user,
+            OrderStatus orderStatus,
+            PaymentStatus paymentStatus,
+            Pageable pageable
+    ) {
 
-        Page<Order> orders = orderRepository.findByUser(user, pageable);
+        Page<Order> orders;
+
+        if (orderStatus != null && paymentStatus != null) {
+            orders = orderRepository
+                    .findByUserAndOrderStatusAndPaymentStatus(
+                            user, orderStatus, paymentStatus, pageable
+                    );
+        } else if (orderStatus != null) {
+            orders = orderRepository
+                    .findByUserAndOrderStatus(user, orderStatus, pageable);
+        } else if (paymentStatus != null) {
+            orders = orderRepository
+                    .findByUserAndPaymentStatus(user, paymentStatus, pageable);
+        } else {
+            orders = orderRepository.findByUser(user, pageable);
+        }
 
         return orders.map(this::mapToResponse);
     }

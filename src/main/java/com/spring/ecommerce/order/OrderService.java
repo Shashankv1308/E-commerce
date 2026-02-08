@@ -11,5 +11,10 @@ public interface OrderService
 
     OrderResponse getOrderById(Long orderId, User user);
 
-    Page<OrderResponse> getOrderHistory(User user, Pageable pageable);
+    Page<OrderResponse> getOrderHistory(
+            User user,
+            OrderStatus orderStatus,
+            PaymentStatus paymentStatus,
+            Pageable pageable
+    );
 }

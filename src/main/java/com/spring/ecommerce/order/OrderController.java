@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.spring.ecommerce.order.dto.OrderResponse;
@@ -31,9 +32,16 @@ public class OrderController
     @GetMapping
     public Page<OrderResponse> getOrderHistory(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            Pageable pageable) 
-    {
-        return orderService.getOrderHistory(userDetails.getUser(), pageable);
+            @RequestParam(required = false) OrderStatus orderStatus,
+            @RequestParam(required = false) PaymentStatus paymentStatus,
+            Pageable pageable
+    ) {
+        return orderService.getOrderHistory(
+                userDetails.getUser(),
+                orderStatus,
+                paymentStatus,
+                pageable
+        );
     }
 
 
