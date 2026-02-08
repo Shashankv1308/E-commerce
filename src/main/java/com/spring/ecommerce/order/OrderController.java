@@ -12,7 +12,8 @@ import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.order.dto.PlaceOrderRequest;
 import com.spring.ecommerce.security.CustomUserDetails;
 import com.spring.ecommerce.user.User;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import jakarta.validation.Valid;
 
 @RestController
@@ -26,6 +27,15 @@ public class OrderController
     {
         this.orderService = orderService;
     }
+
+    @GetMapping
+    public Page<OrderResponse> getOrderHistory(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            Pageable pageable) 
+    {
+        return orderService.getOrderHistory(userDetails.getUser(), pageable);
+    }
+
 
     @GetMapping("/{orderId}")
     public OrderResponse getOrder(

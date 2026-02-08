@@ -18,6 +18,8 @@ import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -126,6 +128,14 @@ public class OrderServiceImpl implements OrderService
         return mapToResponse(order);
     }
 
+    @Override
+    public Page<OrderResponse> getOrderHistory(User user, Pageable pageable) 
+    {
+
+        Page<Order> orders = orderRepository.findByUser(user, pageable);
+
+        return orders.map(this::mapToResponse);
+    }
 
     //Helper method
     private OrderResponse mapToResponse(Order order) 
