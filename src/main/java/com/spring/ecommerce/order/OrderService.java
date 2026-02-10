@@ -17,4 +17,6 @@ public interface OrderService
             PaymentStatus paymentStatus,
             Pageable pageable
     );
+
+    OrderResponse cancelOrder(Long orderId, User user);
 }

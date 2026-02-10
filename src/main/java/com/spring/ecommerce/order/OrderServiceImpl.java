@@ -156,6 +156,43 @@ public class OrderServiceImpl implements OrderService
         return orders.map(this::mapToResponse);
     }
 
+    @Override
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId, User user) 
+    {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Order not found")
+                );
+
+        // Ownership check
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new BusinessException("You are not allowed to cancel this order");
+        }
+
+        // State validation
+        if (order.getOrderStatus() != OrderStatus.CONFIRMED) {
+            throw new BusinessException(
+                    "Order cannot be cancelled in state: " + order.getOrderStatus()
+            );
+        }
+
+        // Restore inventory
+        for (OrderItem item : order.getItems()) {
+            Inventory inventory = item.getProduct().getInventory();
+            inventory.setAvailableStock(
+                    inventory.getAvailableStock() + item.getQuantity()
+            );
+        }
+
+        // Update order & payment status
+        order.setOrderStatus(OrderStatus.CANCELLED);
+        order.setPaymentStatus(PaymentStatus.REFUNDED);
+
+        // Managed entity → no explicit save required
+        return mapToResponse(order);
+    }
+
     //Helper method
     private OrderResponse mapToResponse(Order order) 
     {

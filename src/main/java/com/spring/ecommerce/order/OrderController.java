@@ -61,4 +61,12 @@ public class OrderController
 
         return orderService.placeOrder(user, request.getPaymentMethod());
     }
+
+    @PostMapping("/{orderId}/cancel")
+    public OrderResponse cancelOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return orderService.cancelOrder(orderId, userDetails.getUser());
+    }
 }
