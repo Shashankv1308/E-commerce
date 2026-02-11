@@ -9,6 +9,7 @@ import com.spring.ecommerce.inventory.Inventory;
 import com.spring.ecommerce.order.dto.OrderItemResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.product.Product;
+import com.spring.ecommerce.product.ProductRepository;
 import com.spring.ecommerce.payment.Payment;
 import com.spring.ecommerce.payment.PaymentRepository;
 import com.spring.ecommerce.user.User;
@@ -29,14 +30,17 @@ public class OrderServiceImpl implements OrderService
     private final CartRepository cartRepository;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
+    private final ProductRepository productRepository;
 
     public OrderServiceImpl(CartRepository cartRepository,
                             OrderRepository orderRepository,
-                            PaymentRepository paymentRepository)
+                            PaymentRepository paymentRepository,
+                            ProductRepository productRepository)
     {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
+        this.productRepository = productRepository;
     }
 
     @Override
@@ -63,7 +67,13 @@ public class OrderServiceImpl implements OrderService
         // 3. Convert CartItems to OrderItems
         for (CartItem cartItem : cart.getItems()) 
         {
-            Product product = cartItem.getProduct();
+            // Product product = cartItem.getProduct(); --> Use locks
+
+            // re-fetch product WITH LOCK
+            Product product = productRepository.lockById(
+                        cartItem.getProduct().getId()
+                        );
+
             Inventory inventory = product.getInventory();
 
             if(inventory.getAvailableStock() < cartItem.getQuantity())
@@ -157,7 +167,7 @@ public class OrderServiceImpl implements OrderService
     }
 
     @Override
-    @Transactional
+    @Transactional // just to be explicit about transactionality, though class is already annotated.
     public OrderResponse cancelOrder(Long orderId, User user) 
     {
         Order order = orderRepository.findById(orderId)
@@ -179,7 +189,10 @@ public class OrderServiceImpl implements OrderService
 
         // Restore inventory
         for (OrderItem item : order.getItems()) {
-            Inventory inventory = item.getProduct().getInventory();
+            
+            Inventory inventory = productRepository.lockById(
+                        item.getProduct().getId()
+                        ).getInventory(); // Lock product to prevent concurrent modifications.
             inventory.setAvailableStock(
                     inventory.getAvailableStock() + item.getQuantity()
             );
