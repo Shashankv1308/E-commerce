@@ -5,7 +5,6 @@ import com.spring.ecommerce.cart.CartItem;
 import com.spring.ecommerce.cart.CartRepository;
 import com.spring.ecommerce.exception.BusinessException;
 import com.spring.ecommerce.exception.ResourceNotFoundException;
-import com.spring.ecommerce.inventory.Inventory;
 import com.spring.ecommerce.order.dto.OrderItemResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.product.Product;
@@ -15,7 +14,6 @@ import com.spring.ecommerce.payment.PaymentRepository;
 import com.spring.ecommerce.user.User;
 
 import jakarta.transaction.Transactional;
-import jakarta.persistence.EntityManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,19 +30,16 @@ public class OrderServiceImpl implements OrderService
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
-    private final EntityManager entityManager;
 
     public OrderServiceImpl(CartRepository cartRepository,
                             OrderRepository orderRepository,
                             PaymentRepository paymentRepository,
-                            ProductRepository productRepository,
-                            EntityManager entityManager)
+                            ProductRepository productRepository)
     {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.productRepository = productRepository;
-        this.entityManager = entityManager;
     }
 
     @Override
