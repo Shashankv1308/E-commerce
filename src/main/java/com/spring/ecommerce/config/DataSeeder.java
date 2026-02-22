@@ -2,6 +2,7 @@ package com.spring.ecommerce.config;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.spring.ecommerce.inventory.Inventory;
@@ -12,6 +13,7 @@ import com.spring.ecommerce.user.User;
 import com.spring.ecommerce.user.UserRepository;
 
 
+@Profile("!test")
 @Configuration
 public class DataSeeder {
 

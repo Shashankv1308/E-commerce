@@ -15,6 +15,7 @@ import com.spring.ecommerce.payment.PaymentRepository;
 import com.spring.ecommerce.user.User;
 
 import jakarta.transaction.Transactional;
+import jakarta.persistence.EntityManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,16 +32,19 @@ public class OrderServiceImpl implements OrderService
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final EntityManager entityManager;
 
     public OrderServiceImpl(CartRepository cartRepository,
                             OrderRepository orderRepository,
                             PaymentRepository paymentRepository,
-                            ProductRepository productRepository)
+                            ProductRepository productRepository,
+                            EntityManager entityManager)
     {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.productRepository = productRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -67,25 +71,19 @@ public class OrderServiceImpl implements OrderService
         // 3. Convert CartItems to OrderItems
         for (CartItem cartItem : cart.getItems()) 
         {
-            // Product product = cartItem.getProduct(); --> Use locks
+            Product product = cartItem.getProduct();
 
-            // re-fetch product WITH LOCK
-            Product product = productRepository.lockById(
-                        cartItem.getProduct().getId()
-                        );
-
-            Inventory inventory = product.getInventory();
-
-            if(inventory.getAvailableStock() < cartItem.getQuantity())
-            {
-                throw new BusinessException(
-                        "Insufficient stock for product: " + product.getName());
-            }
-
-            // Reserve stock
-            inventory.setAvailableStock(                        // inventory is managed entity, so no need to save explicitly
-                    inventory.getAvailableStock() - cartItem.getQuantity()
+            // Atomic Update
+            int updated = productRepository.decreaseStockIfAvailable(
+                    product.getId(),
+                    cartItem.getQuantity()
             );
+
+            if (updated == 0) {
+                throw new BusinessException(
+                        "Insufficient stock for product: " + product.getName()
+                );
+            }
 
             // Create OrderItem
             OrderItem orderItem = new OrderItem();
@@ -190,12 +188,17 @@ public class OrderServiceImpl implements OrderService
         // Restore inventory
         for (OrderItem item : order.getItems()) {
             
-            Inventory inventory = productRepository.lockById(
-                        item.getProduct().getId()
-                        ).getInventory(); // Lock product to prevent concurrent modifications.
-            inventory.setAvailableStock(
-                    inventory.getAvailableStock() + item.getQuantity()
+            int updated = productRepository.increaseStock(
+                    item.getProduct().getId(),
+                    item.getQuantity()
             );
+
+            if (updated == 0) {
+                throw new BusinessException(
+                        "Failed to restore inventory for product: "
+                        + item.getProduct().getName()
+                );
+            }
         }
 
         // Update order & payment status
