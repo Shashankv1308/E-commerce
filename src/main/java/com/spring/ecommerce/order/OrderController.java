@@ -56,10 +56,9 @@ public class OrderController
     @PostMapping
     public OrderResponse placeOrder(@AuthenticationPrincipal CustomUserDetails userDetails, @RequestBody @Valid PlaceOrderRequest request) 
     {
-
         User user = userDetails.getUser();
 
-        return orderService.placeOrder(user, request.getPaymentMethod());
+        return orderService.placeOrder(user, request.getPaymentMethod(), request.getIdempotencyKey());
     }
 
     @PostMapping("/{orderId}/cancel")

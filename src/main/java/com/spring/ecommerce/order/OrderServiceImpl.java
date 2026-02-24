@@ -1,5 +1,15 @@
 package com.spring.ecommerce.order;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.spring.ecommerce.cart.Cart;
 import com.spring.ecommerce.cart.CartItem;
 import com.spring.ecommerce.cart.CartRepository;
@@ -7,43 +17,65 @@ import com.spring.ecommerce.exception.BusinessException;
 import com.spring.ecommerce.exception.ResourceNotFoundException;
 import com.spring.ecommerce.order.dto.OrderItemResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
-import com.spring.ecommerce.product.Product;
-import com.spring.ecommerce.product.ProductRepository;
 import com.spring.ecommerce.payment.Payment;
 import com.spring.ecommerce.payment.PaymentRepository;
+import com.spring.ecommerce.product.Product;
+import com.spring.ecommerce.product.ProductRepository;
 import com.spring.ecommerce.user.User;
 
-import jakarta.transaction.Transactional;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @Service
-@Transactional
 public class OrderServiceImpl implements OrderService
 {
     private final CartRepository cartRepository;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final ObjectProvider<OrderServiceImpl> selfProvider;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public OrderServiceImpl(CartRepository cartRepository,
                             OrderRepository orderRepository,
                             PaymentRepository paymentRepository,
-                            ProductRepository productRepository)
+                            ProductRepository productRepository,
+                            ObjectProvider<OrderServiceImpl> selfProvider)
     {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.productRepository = productRepository;
+        // Store the provider, don't resolve yet — bean isn't in context during construction
+        this.selfProvider = selfProvider;
     }
 
+    /**
+     * Non-transactional wrapper.
+     * Calls selfProvider.getObject().createOrder(), which runs in its own @Transactional boundary.
+     * ObjectProvider resolves lazily here (after bean is fully initialized), so we get the proxy.
+     * Because the inner transaction commits before returning here, any
+     * DataIntegrityViolationException (duplicate idempotency key) is catchable.
+     */
     @Override
-    public OrderResponse placeOrder(User user, PaymentMethod paymentMethod)
+    public OrderResponse placeOrder(User user, PaymentMethod paymentMethod, String idempotencyKey)
+    {
+        try {
+            return selfProvider.getObject().createOrder(user, paymentMethod, idempotencyKey);
+        } catch (DataIntegrityViolationException e) {
+            // A concurrent request already committed an order with the same key.
+            // The @EntityGraph on this repo method eagerly loads items + products
+            // so mapToResponse can traverse them without an active Hibernate session.
+            return orderRepository.findByUserAndIdempotencyKey(user, idempotencyKey)
+                    .map(this::mapToResponse)
+                    .orElseThrow(() -> new BusinessException("Order placement failed due to conflict"));
+        }
+    }
+
+    @Transactional
+    public OrderResponse createOrder(User user, PaymentMethod paymentMethod, String idempotencyKey)
     {
         // 1. Fetch Cart
         Cart cart = cartRepository.findByUser(user)
@@ -60,6 +92,7 @@ public class OrderServiceImpl implements OrderService
         order.setOrderStatus(OrderStatus.CONFIRMED);
         order.setPaymentStatus(PaymentStatus.PENDING);
         order.setPaymentMethod(paymentMethod);
+        order.setIdempotencyKey(idempotencyKey);
 
         double total = 0;
 
@@ -94,8 +127,10 @@ public class OrderServiceImpl implements OrderService
 
         order.setTotalAmount(total);
 
-        // 4. Save Order
+        // Save + flush: forces the INSERT now so the unique constraint violation
+        // (if any) is thrown inside this transaction, not silently at commit time.
         Order savedOrder = orderRepository.save(order);
+        entityManager.flush();
 
         // 5. Create Payment
         Payment payment = new Payment();
@@ -114,6 +149,7 @@ public class OrderServiceImpl implements OrderService
     }
 
     @Override
+    @Transactional
     public OrderResponse getOrderById(Long orderId, User user)
     {
 
@@ -132,6 +168,7 @@ public class OrderServiceImpl implements OrderService
     }
 
     @Override
+    @Transactional
     public Page<OrderResponse> getOrderHistory(
             User user,
             OrderStatus orderStatus,
@@ -160,7 +197,7 @@ public class OrderServiceImpl implements OrderService
     }
 
     @Override
-    @Transactional // just to be explicit about transactionality, though class is already annotated.
+    @Transactional
     public OrderResponse cancelOrder(Long orderId, User user) 
     {
         Order order = orderRepository.findById(orderId)

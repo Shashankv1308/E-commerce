@@ -1,5 +1,6 @@
 package com.spring.ecommerce.order;
 
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -54,26 +55,26 @@ class OrderServiceIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // @Autowired
-    // private EntityManager entityManager;
+    @Autowired
+    private EntityManager entityManager;
 
-    // @Autowired
-    // private TransactionTemplate transactionTemplate;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
-    // @BeforeEach
-    // void cleanDatabase() {
-    //         transactionTemplate.execute(status -> {
-    //             entityManager.createNativeQuery("DELETE FROM order_items").executeUpdate();
-    //             entityManager.createNativeQuery("DELETE FROM payments").executeUpdate();
-    //             entityManager.createNativeQuery("DELETE FROM cart_items").executeUpdate(); 
-    //             entityManager.createNativeQuery("DELETE FROM orders").executeUpdate();
-    //             entityManager.createNativeQuery("DELETE FROM carts").executeUpdate();
-    //             entityManager.createNativeQuery("DELETE FROM inventory").executeUpdate();
-    //             entityManager.createNativeQuery("DELETE FROM products").executeUpdate();
-    //             entityManager.createNativeQuery("DELETE FROM users").executeUpdate();
-    //             return null;
-    //         });
-    // }
+    @BeforeEach
+    void cleanDatabase() {
+            transactionTemplate.execute(status -> {
+                entityManager.createNativeQuery("DELETE FROM order_items").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM payments").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM cart_items").executeUpdate(); 
+                entityManager.createNativeQuery("DELETE FROM orders").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM carts").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM inventory").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM products").executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM users").executeUpdate();
+                return null;
+            });
+    }
 
     @Test
     void placeOrder_shouldReduceInventoryAndCreateOrder() {
@@ -113,7 +114,7 @@ class OrderServiceIntegrationTest {
 
         // Place Order
         OrderResponse response
-                = orderService.placeOrder(user, PaymentMethod.ONLINE);
+                = orderService.placeOrder(user, PaymentMethod.ONLINE, "test-idempotency-key");
 
         // Assert inventory reduced
         Product updatedProduct
@@ -167,7 +168,7 @@ class OrderServiceIntegrationTest {
 
         // Place Order
         OrderResponse orderResponse
-                = orderService.placeOrder(user, PaymentMethod.COD);
+                = orderService.placeOrder(user, PaymentMethod.COD, "test");
 
         Long orderId = orderResponse.getOrderId();
 
@@ -239,7 +240,7 @@ class OrderServiceIntegrationTest {
             readyLatch.countDown();
             startLatch.await();
             try {
-                orderService.placeOrder(user1, PaymentMethod.COD);
+                orderService.placeOrder(user1, PaymentMethod.COD, UUID.randomUUID().toString());
                 return true;
             } catch (BusinessException e) {
                 return false;
@@ -250,7 +251,7 @@ class OrderServiceIntegrationTest {
             readyLatch.countDown();
             startLatch.await();
             try {
-                orderService.placeOrder(user2, PaymentMethod.COD);
+                orderService.placeOrder(user2, PaymentMethod.COD, UUID.randomUUID().toString());
                 return true;
             } catch (BusinessException e) {
                 return false;
@@ -280,17 +281,141 @@ class OrderServiceIntegrationTest {
         assertEquals(0, updated.getInventory().getAvailableStock());
     }
 
-    // Hepler method
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void placeOrder_shouldReturnSameOrder_whenSameIdempotencyKeyUsedSequentially() {
+
+        User tempUser = new User();
+        tempUser.setEmail("idempotent-seq-" + System.nanoTime() + "@test.com");
+        tempUser.setPassword("password");
+        tempUser.setRole(Role.USER);
+        final User user = userRepository.save(tempUser);
+
+        // Create Product with stock = 10
+        Product product = new Product();
+        product.setName("Idempotent Product");
+        product.setPrice(50.0);
+        product.setActive(true);
+
+        Inventory inventory = new Inventory();
+        inventory.setTotalStock(10);
+        inventory.setAvailableStock(10);
+        inventory.setProduct(product);
+        product.setInventory(inventory);
+
+        product = productRepository.save(product);
+        final Long productId = product.getId();
+
+        // Create Cart with quantity 2
+        createCart(user, product, 2);
+
+        String idempotencyKey = "sequential-idempotency-key-" + UUID.randomUUID();
+
+        // First call
+        OrderResponse firstResponse = orderService.placeOrder(user, PaymentMethod.ONLINE, idempotencyKey);
+        assertNotNull(firstResponse.getOrderId());
+        assertEquals(100.0, firstResponse.getTotalAmount());
+
+        // Add to cart for second call
+        createCart(user, product, 3);
+
+        // Second call with same idempotency key - should return same order (not create new one)
+        OrderResponse secondResponse = orderService.placeOrder(user, PaymentMethod.ONLINE, idempotencyKey);
+
+        // Both responses should have the same order ID
+        assertEquals(firstResponse.getOrderId(), secondResponse.getOrderId());
+        assertEquals(firstResponse.getTotalAmount(), secondResponse.getTotalAmount());
+
+        // 10 - 2 = 8
+        Product updatedProduct = productRepository.findById(productId).orElseThrow();
+        assertEquals(8, updatedProduct.getInventory().getAvailableStock());
+
+        Product updatedProduct2 = productRepository.findById(productId).orElseThrow();
+        assertEquals(8, updatedProduct2.getInventory().getAvailableStock());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void placeOrder_shouldReturnSameOrder_whenSameIdempotencyKeyUsedConcurrently() throws Exception {
+
+        User tempUser = new User();
+        tempUser.setEmail("idempotent-concurrent@test.com");
+        tempUser.setPassword("password");
+        tempUser.setRole(Role.USER);
+        final User user = userRepository.save(tempUser);
+
+        // Create Product with stock = 10
+        Product product = new Product();
+        product.setName("Concurrent Idempotent Product");
+        product.setPrice(75.0);
+        product.setActive(true);
+
+        Inventory inventory = new Inventory();
+        inventory.setTotalStock(10);
+        inventory.setAvailableStock(10);
+        inventory.setProduct(product);
+        product.setInventory(inventory);
+
+        product = productRepository.save(product);
+        final Long productId = product.getId();
+
+        // Create Cart with quantity 3
+        createCart(user, product, 3);
+
+        final String idempotencyKey = "concurrent-idempotency-key-" + UUID.randomUUID();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        CountDownLatch readyLatch = new CountDownLatch(2);
+        CountDownLatch startLatch = new CountDownLatch(1);
+
+        Callable<OrderResponse> task = () -> {
+            readyLatch.countDown();
+            startLatch.await();
+            return orderService.placeOrder(user, PaymentMethod.COD, idempotencyKey);
+        };
+
+        Future<OrderResponse> f1 = executor.submit(task);
+        Future<OrderResponse> f2 = executor.submit(task);
+
+        // Wait for both threads to be ready
+        readyLatch.await();
+        // Release both threads simultaneously
+        startLatch.countDown();
+
+        OrderResponse r1 = f1.get(5, TimeUnit.SECONDS);
+        OrderResponse r2 = f2.get(5, TimeUnit.SECONDS);
+
+        executor.shutdown();
+
+        // Both responses should return the same order
+        assertNotNull(r1.getOrderId());
+        assertNotNull(r2.getOrderId());
+        assertEquals(r1.getOrderId(), r2.getOrderId());
+        assertEquals(r1.getTotalAmount(), r2.getTotalAmount());
+
+        // Inventory should only be reduced once (10 - 3 = 7)
+        Product updatedProduct = productRepository.findById(productId).orElseThrow();
+        assertEquals(7, updatedProduct.getInventory().getAvailableStock());
+    }
+
+    // Helper method - creates a new cart or uses existing one (wrapped in transaction)
     private void createCart(User user, Product product, int quantity) {
-        Cart cart = new Cart();
-        cart.setUser(user);
+        transactionTemplate.execute(status -> {
+            Cart cart = cartRepository.findByUser(user).orElseGet(() -> {
+                Cart newCart = new Cart();
+                newCart.setUser(user);
+                return newCart;
+            });
 
-        CartItem item = new CartItem();
-        item.setCart(cart);
-        item.setProduct(product);
-        item.setQuantity(quantity);
+            CartItem item = new CartItem();
+            item.setCart(cart);
+            item.setProduct(product);
+            item.setQuantity(quantity);
 
-        cart.getItems().add(item);
-        cartRepository.save(cart);
+            cart.getItems().add(item);
+            cartRepository.save(cart);
+            return null;
+        });
     }
 }

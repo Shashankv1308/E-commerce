@@ -16,6 +16,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -25,7 +26,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "orders")
+@Table(
+    name = "orders",
+    indexes = @Index(
+        name = "idx_orders_user_idempotency",
+        columnList = "user_id, idempotency_key",
+        unique = true
+    )
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -57,6 +65,9 @@ public class Order
     @CreationTimestamp
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false, unique = true, length = 64)
+    private String idempotencyKey;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.PERSIST)
     private List<OrderItem> items = new ArrayList<>();

@@ -7,7 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface OrderService 
 {
-    OrderResponse placeOrder(User user, PaymentMethod paymentMethod);
+    OrderResponse placeOrder(User user, PaymentMethod paymentMethod, String idempotencyKey);
 
     OrderResponse getOrderById(Long orderId, User user);
 
