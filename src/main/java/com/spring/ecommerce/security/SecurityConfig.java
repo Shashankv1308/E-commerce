@@ -46,6 +46,7 @@ public class SecurityConfig
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/webhooks/**").permitAll()  // Payment gateway webhooks
                 .anyRequest().authenticated()
             );
             

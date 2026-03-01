@@ -3,6 +3,7 @@ package com.spring.ecommerce.order;
 import com.spring.ecommerce.user.User;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -14,8 +15,11 @@ public interface OrderRepository extends JpaRepository<Order, Long>
 {
     List<Order> findByUser(User user);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"items", "items.product"})
+    @EntityGraph(attributePaths = {"items", "items.product"})
     Optional<Order> findByUserAndIdempotencyKey(User user, String idempotencyKey);
+
+    @EntityGraph(attributePaths = {"items", "items.product"})
+    Optional<Order> findWithItemsById(Long id);
 
     Page<Order> findByUser(User user, Pageable pageable);
 

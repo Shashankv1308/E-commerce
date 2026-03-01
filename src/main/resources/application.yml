@@ -16,4 +16,14 @@ spring:
     init:
       mode: never
 
+# Payment Gateway Configuration
+payment:
+  gateway:
+    provider: mock  # Use "razorpay" for production
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+      merchant-vpa: ${RAZORPAY_MERCHANT_VPA:merchant@upi}
+
  

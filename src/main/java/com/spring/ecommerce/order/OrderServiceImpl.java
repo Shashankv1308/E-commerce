@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,7 @@ import com.spring.ecommerce.order.dto.OrderItemResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.payment.Payment;
 import com.spring.ecommerce.payment.PaymentRepository;
+import com.spring.ecommerce.payment.event.OrderPlacedEvent;
 import com.spring.ecommerce.product.Product;
 import com.spring.ecommerce.product.ProductRepository;
 import com.spring.ecommerce.user.User;
@@ -34,6 +36,7 @@ public class OrderServiceImpl implements OrderService
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
     private final ObjectProvider<OrderServiceImpl> selfProvider;
+    private final ApplicationEventPublisher eventPublisher;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -42,7 +45,8 @@ public class OrderServiceImpl implements OrderService
                             OrderRepository orderRepository,
                             PaymentRepository paymentRepository,
                             ProductRepository productRepository,
-                            ObjectProvider<OrderServiceImpl> selfProvider)
+                            ObjectProvider<OrderServiceImpl> selfProvider,
+                            ApplicationEventPublisher eventPublisher)
     {
         this.cartRepository = cartRepository;
         this.orderRepository = orderRepository;
@@ -50,6 +54,7 @@ public class OrderServiceImpl implements OrderService
         this.productRepository = productRepository;
         // Store the provider, don't resolve yet — bean isn't in context during construction
         this.selfProvider = selfProvider;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -90,7 +95,11 @@ public class OrderServiceImpl implements OrderService
         Order order = new Order();
         order.setUser(user);
         order.setOrderStatus(OrderStatus.CONFIRMED);
-        order.setPaymentStatus(PaymentStatus.PENDING);
+        // Set initial payment status based on payment method
+        PaymentStatus initialPaymentStatus = (paymentMethod == PaymentMethod.ONLINE) 
+                ? PaymentStatus.AWAITING_PAYMENT 
+                : PaymentStatus.PENDING;
+        order.setPaymentStatus(initialPaymentStatus);
         order.setPaymentMethod(paymentMethod);
         order.setIdempotencyKey(idempotencyKey);
 
@@ -132,18 +141,33 @@ public class OrderServiceImpl implements OrderService
         Order savedOrder = orderRepository.save(order);
         entityManager.flush();
 
-        // 5. Create Payment
+        // 5. Create Payment with same initial status as order
         Payment payment = new Payment();
         payment.setOrder(savedOrder);
         payment.setPaymentMethod(paymentMethod);
-        payment.setPaymentStatus(PaymentStatus.PENDING);
+        payment.setPaymentStatus(initialPaymentStatus);
         payment.setAmount(total);
 
-        paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
 
         // 6. Clear Cart
         cart.getItems().clear();
         cartRepository.save(cart);
+
+        // 7. Publish OrderPlacedEvent for async payment processing (ONLINE only)
+        // COD orders don't need gateway initiation — they stay PENDING until delivery
+        // Event will be delivered AFTER transaction commits (via @TransactionalEventListener)
+        if (paymentMethod == PaymentMethod.ONLINE) {
+            eventPublisher.publishEvent(new OrderPlacedEvent(
+                    savedOrder.getId(),
+                    savedPayment.getId(),
+                    user.getId(),
+                    total,
+                    paymentMethod,
+                    user.getEmail(),
+                    user.getPhoneNumber()
+            ));
+        }
 
         return mapToResponse(savedOrder);
     }

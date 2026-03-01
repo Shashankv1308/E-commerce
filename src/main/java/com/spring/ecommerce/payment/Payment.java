@@ -3,6 +3,7 @@ package com.spring.ecommerce.payment;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import com.spring.ecommerce.order.Order;
 import com.spring.ecommerce.order.PaymentMethod;
@@ -48,8 +49,26 @@ public class Payment
     @Column(nullable = false)
     private Double amount;
 
+    // Gateway-specific fields
+    @Column(length = 64)
+    private String gatewayOrderId;       // Gateway's order reference (e.g., order_xxx)
+
+    @Column(length = 64)
+    private String gatewayPaymentId;     // Gateway's payment reference (e.g., pay_xxx)
+
+    @Column(length = 64)
+    private String upiTransactionId;     // UPI transaction reference
+
+    @Column(length = 255)
+    private String failureReason;        // Error message if payment failed
+
+    @Column(length = 512)
+    private String paymentLink;          // Payment link for customer
+
     @CreationTimestamp
     @Column(nullable = false)
     private LocalDateTime createdAt;
-    
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 }
