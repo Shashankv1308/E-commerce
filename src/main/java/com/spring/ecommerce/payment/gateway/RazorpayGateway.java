@@ -164,16 +164,6 @@ public class RazorpayGateway implements PaymentGateway
         }
     }
 
-    private PaymentStatus mapRazorpayStatus(String razorpayStatus) 
-    {
-        return switch (razorpayStatus) {
-            case "captured", "authorized" -> PaymentStatus.SUCCESS;
-            case "failed" -> PaymentStatus.FAILED;
-            case "refunded" -> PaymentStatus.REFUNDED;
-            default -> PaymentStatus.AWAITING_PAYMENT;
-        };
-    }
-
     private String calculateHmacSha256(String data, String secret) throws Exception 
     {
         Mac mac = Mac.getInstance("HmacSHA256");

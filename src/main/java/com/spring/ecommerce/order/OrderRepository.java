@@ -37,4 +37,14 @@ public interface OrderRepository extends JpaRepository<Order, Long>
             PaymentStatus paymentStatus,
             Pageable pageable
     );
+
+    // ── Admin queries (no user filter) ──────────────────────────
+
+    Page<Order> findByOrderStatus(OrderStatus orderStatus, Pageable pageable);
+
+    Page<Order> findByPaymentStatus(PaymentStatus paymentStatus, Pageable pageable);
+
+    Page<Order> findByOrderStatusAndPaymentStatus(
+            OrderStatus orderStatus, PaymentStatus paymentStatus, Pageable pageable
+    );
 }

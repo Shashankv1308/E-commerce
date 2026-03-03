@@ -46,7 +46,8 @@ public class SecurityConfig
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/webhooks/**").permitAll()  // Payment gateway webhooks
+                .requestMatchers("/webhooks/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             );
             

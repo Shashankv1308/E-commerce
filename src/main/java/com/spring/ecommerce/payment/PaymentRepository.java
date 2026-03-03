@@ -10,6 +10,9 @@ import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -30,4 +33,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long>
     /** Find stale payments for scheduled reconciliation */
     List<Payment> findByPaymentStatusAndCreatedAtBefore(
             PaymentStatus paymentStatus, LocalDateTime cutoff);
+
+    /** Admin: paginated payment queries */
+    Page<Payment> findByPaymentStatus(PaymentStatus paymentStatus, Pageable pageable);
 }
