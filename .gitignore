@@ -1,4 +1,3 @@
-HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -39,3 +38,4 @@ build/
 ### Logs ###
 logs/
 *.log
+test-output.txt
