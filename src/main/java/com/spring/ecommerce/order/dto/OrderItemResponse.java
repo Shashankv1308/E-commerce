@@ -3,9 +3,11 @@ package com.spring.ecommerce.order.dto;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
+
 @Getter
 @Setter
-public class OrderItemResponse 
+public class OrderItemResponse implements Serializable 
 {
     private Long productId;
     private String productName;

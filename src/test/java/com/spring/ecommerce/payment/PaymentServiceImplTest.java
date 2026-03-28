@@ -17,6 +17,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.spring.ecommerce.exception.BusinessException;
@@ -47,6 +49,8 @@ class PaymentServiceImplTest
     @Mock private PaymentGateway paymentGateway;
     @Mock private PaymentGatewayProperties paymentGatewayProperties;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private CacheManager cacheManager;
+    @Mock private Cache cache;
 
     @InjectMocks
     private PaymentServiceImpl paymentService;
@@ -58,6 +62,9 @@ class PaymentServiceImplTest
     @BeforeEach
     void setUp() 
     {
+        // Wire cache mock so evictOrderCache() doesn't NPE
+        lenient().when(cacheManager.getCache("orders")).thenReturn(cache);
+
         user = new User();
         user.setId(1L);
         user.setEmail("test@example.com");

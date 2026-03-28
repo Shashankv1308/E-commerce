@@ -39,6 +39,8 @@ import com.spring.ecommerce.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.cache.CacheManager;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,6 +55,7 @@ public class AdminServiceImpl implements AdminService
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminAuditLogRepository auditLogRepository;
+    private final CacheManager cacheManager;
 
     // ── Orders ──────────────────────────────────────────────────
 
@@ -130,6 +133,9 @@ public class AdminServiceImpl implements AdminService
 
         orderRepository.save(order);
         log.info("Admin {} updated order {} status: {} → {}", adminEmail, orderId, oldStatus, targetStatus);
+
+        // Evict cached order — status changed (key includes userId for security isolation)
+        evictOrderCache(orderId, order.getUser().getId());
 
         return mapToAdminOrderResponse(order);
     }
@@ -211,6 +217,9 @@ public class AdminServiceImpl implements AdminService
                 "status: " + oldStatus + " → " + targetStatus.name() + " (orderId=" + orderId + ")");
 
         log.info("Admin {} updated payment {} status: {} → {}", adminEmail, paymentId, oldStatus, targetStatus);
+
+        // eviction is handled inside paymentService.markPaymentSuccess/Failed,
+        // which already has the order loaded and evicts with the correct user-scoped key
 
         // Re-fetch to return updated state
         Payment updated = paymentRepository.findById(paymentId)
@@ -312,6 +321,15 @@ public class AdminServiceImpl implements AdminService
     }
 
     // ── Helpers ─────────────────────────────────────────────────
+
+    private void evictOrderCache(Long orderId, Long userId)
+    {
+        var cache = cacheManager.getCache("orders");
+        if (cache != null) {
+            // Key must match @Cacheable key = "#orderId + '_' + #user.id" in OrderServiceImpl
+            cache.evict(orderId + "_" + userId);
+        }
+    }
 
     private void recordAuditLog(String adminEmail, AdminActionType actionType, 
                                  String targetEntity, Long targetId, String details) 

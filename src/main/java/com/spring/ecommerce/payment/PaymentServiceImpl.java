@@ -3,6 +3,7 @@ package com.spring.ecommerce.payment;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.cache.CacheManager;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class PaymentServiceImpl implements PaymentService
     private final PaymentGateway paymentGateway;
     private final PaymentGatewayProperties paymentGatewayProperties;
     private final ApplicationEventPublisher eventPublisher;
+    private final CacheManager cacheManager;
 
     @Override
     @Transactional
@@ -179,6 +181,9 @@ public class PaymentServiceImpl implements PaymentService
         log.info("Payment SUCCESS for order {}: gatewayPaymentId={}, upiTxnId={}", 
                 orderId, gatewayPaymentId, upiTransactionId);
 
+        // Evict cached order — status changed (key includes userId for security isolation)
+        evictOrderCache(orderId, order.getUser().getId());
+
         // Publish event for any downstream processing
         eventPublisher.publishEvent(new PaymentCompletedEvent(
                 orderId,
@@ -230,12 +235,24 @@ public class PaymentServiceImpl implements PaymentService
 
         log.info("Payment FAILED for order {}: reason={}", orderId, failureReason);
 
+        // Evict cached order — status changed (key includes userId for security isolation)
+        evictOrderCache(orderId, order.getUser().getId());
+
         // Publish event
         eventPublisher.publishEvent(new PaymentFailedEvent(
                 orderId,
                 payment.getId(),
                 failureReason
         ));
+    }
+
+    private void evictOrderCache(Long orderId, Long userId)
+    {
+        var cache = cacheManager.getCache("orders");
+        if (cache != null) {
+            // Key must match @Cacheable key = "#orderId + '_' + #user.id" in OrderServiceImpl
+            cache.evict(orderId + "_" + userId);
+        }
     }
 
     /**

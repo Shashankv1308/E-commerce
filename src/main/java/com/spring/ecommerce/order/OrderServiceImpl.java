@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -174,10 +176,13 @@ public class OrderServiceImpl implements OrderService
 
     @Override
     @Transactional
+    @Cacheable(value = "orders", key = "#orderId + '_' + #user.id")
     public OrderResponse getOrderById(Long orderId, User user)
     {
 
-        Order order = orderRepository.findById(orderId)
+        // findWithItemsById uses @EntityGraph to eagerly load items + products,
+        // avoiding lazy loading outside the Hibernate session
+        Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Order not found")
                 );
@@ -222,9 +227,12 @@ public class OrderServiceImpl implements OrderService
 
     @Override
     @Transactional
+    @CacheEvict(value = "orders", key = "#orderId + '_' + #user.id")
     public OrderResponse cancelOrder(Long orderId, User user) 
     {
-        Order order = orderRepository.findById(orderId)
+        // Use findWithItemsById to eagerly load items + products via @EntityGraph,
+        // consistent with getOrderById — avoids reliance on open-in-view for lazy loading
+        Order order = orderRepository.findWithItemsById(orderId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Order not found")
                 );

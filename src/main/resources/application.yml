@@ -16,6 +16,12 @@ spring:
     init:
       mode: never
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
 # Payment Gateway Configuration
 payment:
   gateway:
