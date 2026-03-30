@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import formatCurrency from '../utils/formatCurrency';
+import useToast from '../hooks/useToast';
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState('COD');
@@ -27,11 +29,13 @@ export default function Checkout() {
 
     try {
       const res = await api.post('/orders', { paymentMethod, idempotencyKey });
+      toast.success('Order placed successfully!');
       navigate(`/orders/${res.data.orderId}`, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.message || err.response?.data || 'Failed to place order. Please try again.'
       );
+      toast.error('Failed to place order');
     } finally {
       setPlacing(false);
     }

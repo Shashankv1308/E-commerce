@@ -82,7 +82,8 @@ export default function AdminOrders() {
 
       {!loading && orders.length > 0 && (
         <>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
             <table className="w-full text-left min-w-[700px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -114,6 +115,32 @@ export default function AdminOrders() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {orders.map((o) => (
+              <div
+                key={o.orderId}
+                onClick={() => navigate(`/admin/orders/${o.orderId}`)}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 cursor-pointer hover:bg-gray-50"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-sm font-medium text-indigo-600">#{o.orderId}</span>
+                  <span className="text-xs text-gray-500">{formatDate(o.createdAt)}</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1 truncate">{o.userEmail}</p>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-gray-900">{formatCurrency(o.totalAmount)}</span>
+                  <span className="text-xs text-gray-500">{o.paymentMethod}</span>
+                </div>
+                <div className="flex gap-2">
+                  <StatusBadge status={o.orderStatus} />
+                  <StatusBadge status={o.paymentStatus} />
+                </div>
+              </div>
+            ))}
+          </div>
+
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}

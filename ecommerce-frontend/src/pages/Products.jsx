@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 import formatCurrency from '../utils/formatCurrency';
+import useToast from '../hooks/useToast';
 
 function SkeletonCard() {
   return (
@@ -20,7 +21,7 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [addingId, setAddingId] = useState(null);
-  const [toast, setToast] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     api
@@ -34,11 +35,9 @@ export default function Products() {
     setAddingId(productId);
     try {
       await api.post('/cart/items', { productId, quantity: 1 });
-      setToast('Added to cart');
-      setTimeout(() => setToast(''), 2000);
+      toast.success('Added to cart');
     } catch (err) {
-      setToast(err.response?.data?.message || err.response?.data || 'Could not add to cart');
-      setTimeout(() => setToast(''), 3000);
+      toast.error(err.response?.data?.message || err.response?.data || 'Could not add to cart');
     } finally {
       setAddingId(null);
     }
@@ -47,13 +46,6 @@ export default function Products() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Products</h1>
-
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white px-4 py-2 rounded-md shadow-lg text-sm">
-          {toast}
-        </div>
-      )}
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">

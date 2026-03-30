@@ -81,7 +81,8 @@ export default function AdminInventory() {
 
       {!loading && items.length > 0 && (
         <>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
             <table className="w-full text-left min-w-[650px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -150,6 +151,42 @@ export default function AdminInventory() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {items.map((item) => (
+              <div key={item.productId} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-sm font-medium text-gray-900">{item.productName}</span>
+                  <span className="text-xs text-gray-500">#{item.productId}</span>
+                </div>
+                <div className="flex gap-4 text-sm mb-2">
+                  <span className="text-gray-600">Available: <strong>{item.availableStock}</strong></span>
+                  <span className="text-gray-600">Total: <strong>{item.totalStock}</strong></span>
+                  <span className={item.isActive ? 'text-green-600' : 'text-red-500'}>{item.isActive ? 'Active' : 'Inactive'}</span>
+                </div>
+                {editId === item.productId ? (
+                  <div className="space-y-2 mt-2">
+                    <div className="flex gap-2">
+                      <select value={adjType} onChange={(e) => setAdjType(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 rounded-md">
+                        <option value="DELTA">Delta</option>
+                        <option value="ABSOLUTE">Absolute</option>
+                      </select>
+                      <input type="number" placeholder="Qty" value={adjQty} onChange={(e) => setAdjQty(e.target.value)} className="w-20 px-2 py-1 text-sm border border-gray-300 rounded-md" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEdit(item.productId)} disabled={updating} className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-md disabled:opacity-50">{updating ? '…' : 'Save'}</button>
+                      <button onClick={cancelEdit} className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-md">Cancel</button>
+                    </div>
+                    {updateMsg && editId === item.productId && <p className="text-xs text-red-600">{updateMsg}</p>}
+                  </div>
+                ) : (
+                  <button onClick={() => startEdit(item)} className="mt-1 px-3 py-1 text-xs border border-gray-300 rounded-md hover:bg-gray-100">Adjust</button>
+                )}
+              </div>
+            ))}
+          </div>
+
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}

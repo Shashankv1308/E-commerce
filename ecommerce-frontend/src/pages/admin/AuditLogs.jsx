@@ -85,7 +85,8 @@ export default function AuditLogs() {
 
       {!loading && logs.length > 0 && (
         <>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
             <table className="w-full text-left min-w-[800px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -119,6 +120,28 @@ export default function AuditLogs() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {logs.map((log) => (
+              <div key={log.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                    {log.actionType?.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-xs text-gray-500">{formatDate(log.createdAt)}</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-1">{log.adminEmail}</p>
+                <p className="text-sm text-gray-700 mb-1">
+                  <span className="text-gray-500">Target:</span> {log.targetEntity} #{log.targetId}
+                </p>
+                {log.details && (
+                  <p className="text-xs text-gray-500 break-words">{log.details}</p>
+                )}
+              </div>
+            ))}
+          </div>
+
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </>
       )}

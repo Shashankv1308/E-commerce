@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import formatCurrency from '../utils/formatCurrency';
 import StatusBadge from '../components/StatusBadge';
+import useToast from '../hooks/useToast';
 
 export default function OrderDetail() {
   const { orderId } = useParams();
+  const toast = useToast();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const pollRef = useRef(null);
 
   useEffect(() => {
     api
@@ -20,14 +24,37 @@ export default function OrderDetail() {
       .finally(() => setLoading(false));
   }, [orderId]);
 
+  // Payment status polling
+  useEffect(() => {
+    if (order?.paymentStatus === 'AWAITING_PAYMENT') {
+      setPolling(true);
+      pollRef.current = setInterval(() => {
+        api.get(`/orders/${orderId}`).then((res) => {
+          if (res.data.paymentStatus !== 'AWAITING_PAYMENT') {
+            clearInterval(pollRef.current);
+            setPolling(false);
+            setOrder(res.data);
+            toast.success('Payment status updated!');
+          }
+        }).catch(() => {});
+      }, 5000);
+    } else {
+      setPolling(false);
+    }
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [order?.paymentStatus, orderId, toast]);
+
   async function handleCancel() {
     setCancelling(true);
     setShowConfirm(false);
     try {
       const res = await api.post(`/orders/${orderId}/cancel`);
       setOrder(res.data);
+      toast.success('Order cancelled successfully');
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data || 'Failed to cancel order.');
+      const msg = err.response?.data?.message || err.response?.data || 'Failed to cancel order.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCancelling(false);
     }
@@ -73,6 +100,17 @@ export default function OrderDetail() {
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">{error}</div>
+      )}
+
+      {/* Payment polling indicator */}
+      {polling && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-center gap-3">
+          <svg className="w-5 h-5 text-amber-500 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span className="text-sm font-medium text-amber-700">Checking payment status…</span>
+        </div>
       )}
 
       {/* Order header */}

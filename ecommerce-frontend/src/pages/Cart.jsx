@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import formatCurrency from '../utils/formatCurrency';
+import useToast from '../hooks/useToast';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [cart, setCart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,8 +30,9 @@ export default function Cart() {
     try {
       const res = await api.delete(`/cart/items/${productId}`);
       setCart(res.data);
+      toast.success('Item removed from cart');
     } catch {
-      setError('Failed to remove item.');
+      toast.error('Failed to remove item.');
     } finally {
       setRemovingId(null);
     }
