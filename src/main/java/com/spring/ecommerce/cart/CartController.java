@@ -2,6 +2,7 @@ package com.spring.ecommerce.cart;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,6 +30,12 @@ public class CartController
     {
         this.cartService = cartService;
         this.productRepository = productRepository;
+    }
+
+    @GetMapping
+    public CartResponse getCart(@AuthenticationPrincipal CustomUserDetails userDetails)
+    {
+        return cartService.getCart(userDetails.getUser());
     }
 
     @PostMapping("/items")
