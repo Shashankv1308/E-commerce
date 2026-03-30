@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.spring.ecommerce.order.dto.OrderPaymentInfoResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.order.dto.PlaceOrderRequest;
 import com.spring.ecommerce.security.CustomUserDetails;
@@ -59,6 +60,14 @@ public class OrderController
         User user = userDetails.getUser();
 
         return orderService.placeOrder(user, request.getPaymentMethod(), request.getIdempotencyKey());
+    }
+
+    @GetMapping("/{orderId}/payment-info")
+    public OrderPaymentInfoResponse getPaymentInfo(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return orderService.getPaymentInfo(orderId, userDetails.getUser());
     }
 
     @PostMapping("/{orderId}/cancel")

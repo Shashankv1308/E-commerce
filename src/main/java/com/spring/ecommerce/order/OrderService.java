@@ -1,5 +1,6 @@
 package com.spring.ecommerce.order;
 
+import com.spring.ecommerce.order.dto.OrderPaymentInfoResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.user.User;
 import org.springframework.data.domain.Page;
@@ -19,4 +20,6 @@ public interface OrderService
     );
 
     OrderResponse cancelOrder(Long orderId, User user);
+
+    OrderPaymentInfoResponse getPaymentInfo(Long orderId, User user);
 }

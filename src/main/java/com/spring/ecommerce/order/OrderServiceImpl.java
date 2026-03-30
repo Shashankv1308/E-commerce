@@ -19,6 +19,7 @@ import com.spring.ecommerce.cart.CartRepository;
 import com.spring.ecommerce.exception.BusinessException;
 import com.spring.ecommerce.exception.ResourceNotFoundException;
 import com.spring.ecommerce.order.dto.OrderItemResponse;
+import com.spring.ecommerce.order.dto.OrderPaymentInfoResponse;
 import com.spring.ecommerce.order.dto.OrderResponse;
 import com.spring.ecommerce.payment.Payment;
 import com.spring.ecommerce.payment.PaymentRepository;
@@ -271,6 +272,29 @@ public class OrderServiceImpl implements OrderService
 
         // Managed entity → no explicit save required
         return mapToResponse(order);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OrderPaymentInfoResponse getPaymentInfo(Long orderId, User user) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new BusinessException("Access denied");
+        }
+
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+
+        OrderPaymentInfoResponse response = new OrderPaymentInfoResponse();
+        response.setOrderId(orderId);
+        response.setPaymentStatus(order.getPaymentStatus().name());
+        response.setPaymentLink(payment.getPaymentLink());
+        response.setGatewayOrderId(payment.getGatewayOrderId());
+        response.setReady(payment.getPaymentLink() != null);
+
+        return response;
     }
 
     //Helper method

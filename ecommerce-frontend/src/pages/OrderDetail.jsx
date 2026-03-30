@@ -14,7 +14,9 @@ export default function OrderDetail() {
   const [cancelling, setCancelling] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState(null);
   const pollRef = useRef(null);
+  const paymentPollRef = useRef(null);
 
   useEffect(() => {
     api
@@ -24,7 +26,27 @@ export default function OrderDetail() {
       .finally(() => setLoading(false));
   }, [orderId]);
 
-  // Payment status polling
+  // Poll for payment link readiness (every 2s until ready)
+  useEffect(() => {
+    if (order?.paymentMethod !== 'ONLINE' || order?.paymentStatus !== 'AWAITING_PAYMENT') return;
+
+    // Fetch immediately, then poll
+    const fetchPaymentInfo = () => {
+      api.get(`/orders/${orderId}/payment-info`).then((res) => {
+        setPaymentInfo(res.data);
+        if (res.data.ready) {
+          clearInterval(paymentPollRef.current);
+        }
+      }).catch(() => {});
+    };
+
+    fetchPaymentInfo();
+    paymentPollRef.current = setInterval(fetchPaymentInfo, 2000);
+
+    return () => { if (paymentPollRef.current) clearInterval(paymentPollRef.current); };
+  }, [order?.paymentMethod, order?.paymentStatus, orderId]);
+
+  // Payment status polling (every 5s until status changes from AWAITING_PAYMENT)
   useEffect(() => {
     if (order?.paymentStatus === 'AWAITING_PAYMENT') {
       setPolling(true);
@@ -32,6 +54,7 @@ export default function OrderDetail() {
         api.get(`/orders/${orderId}`).then((res) => {
           if (res.data.paymentStatus !== 'AWAITING_PAYMENT') {
             clearInterval(pollRef.current);
+            clearInterval(paymentPollRef.current);
             setPolling(false);
             setOrder(res.data);
             toast.success('Payment status updated!');
@@ -110,6 +133,39 @@ export default function OrderDetail() {
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
           <span className="text-sm font-medium text-amber-700">Checking payment status…</span>
+        </div>
+      )}
+
+      {/* Complete Your Payment card */}
+      {order.paymentMethod === 'ONLINE' && order.paymentStatus === 'AWAITING_PAYMENT' && (
+        <div className="mb-5 bg-indigo-50 border border-indigo-200 rounded-lg p-5">
+          <h2 className="text-lg font-semibold text-indigo-900 mb-2">Complete Your Payment</h2>
+          {paymentInfo?.ready ? (
+            <div className="space-y-3">
+              <p className="text-sm text-indigo-700">
+                Your payment link is ready. Click the button below to proceed to the payment portal.
+              </p>
+              <a
+                href={paymentInfo.paymentLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Pay Now
+              </a>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-indigo-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span className="text-sm text-indigo-600">Preparing your payment link…</span>
+            </div>
+          )}
         </div>
       )}
 
