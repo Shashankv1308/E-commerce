@@ -15,7 +15,6 @@ import com.spring.ecommerce.order.Order;
 import com.spring.ecommerce.order.OrderItem;
 import com.spring.ecommerce.order.OrderRepository;
 import com.spring.ecommerce.order.OrderStatus;
-import com.spring.ecommerce.order.PaymentMethod;
 import com.spring.ecommerce.order.PaymentStatus;
 import com.spring.ecommerce.payment.dto.PaymentInitiationRequest;
 import com.spring.ecommerce.payment.dto.PaymentInitiationResponse;

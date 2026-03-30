@@ -3,7 +3,7 @@
 ## Setup
 
 ### Prerequisites
-- [Java 17](https://adoptium.net/) (JDK, not just JRE)
+- [Java 21](https://adoptium.net/) (JDK, not just JRE)
 - [Docker](https://www.docker.com/products/docker-desktop/) (for Redis)
 - [PostgreSQL](https://www.postgresql.org/download/) (native install — DB data must survive container restarts)
 
