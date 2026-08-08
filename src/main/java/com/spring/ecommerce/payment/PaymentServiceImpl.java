@@ -29,6 +29,9 @@ import com.spring.ecommerce.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -247,10 +250,26 @@ public class PaymentServiceImpl implements PaymentService
 
     private void evictOrderCache(Long orderId, Long userId)
     {
-        var cache = cacheManager.getCache("orders");
-        if (cache != null) {
-            // Key must match @Cacheable key = "#orderId + '_' + #user.id" in OrderServiceImpl
-            cache.evict(orderId + "_" + userId);
+        String cacheKey = orderId + "_" + userId;
+
+        // Defer eviction until after the transaction commits so a concurrent
+        // @Cacheable read cannot re-populate the cache with stale pre-commit data
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    var cache = cacheManager.getCache("orders");
+                    if (cache != null) {
+                        cache.evict(cacheKey);
+                        log.debug("Evicted order cache after commit: {}", cacheKey);
+                    }
+                }
+            });
+        } else {
+            var cache = cacheManager.getCache("orders");
+            if (cache != null) {
+                cache.evict(cacheKey);
+            }
         }
     }
 
